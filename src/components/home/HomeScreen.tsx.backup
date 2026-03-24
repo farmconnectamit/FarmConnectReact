@@ -1,0 +1,440 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity,
+  StatusBar,
+  Alert,
+  BackHandler,
+  TextInput,
+  Button,
+  RefreshControl,
+  Modal,
+  FlatList
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSelector, TypedUseSelectorHook } from 'react-redux';
+import { selectCartItems } from '../../store/cartSlice';
+import { useGetAllProductsQuery } from '../../store/product-api';
+import { isAuthenticated, clearTokens } from '../../utils/auth';
+import HomeCategorgiesList from './homecategorieslist';
+import { useNavigation } from '@react-navigation/native';
+import HomeProductList from './HomeProductList';
+import ProductCard from './ProductCard';
+import { Product } from '../../types/api-response';
+
+type RootStackParamList = {
+  Details: { product: Product };
+  Home: undefined;
+  SignIn: undefined;
+  SignUp: undefined;
+  Cart: undefined;
+};
+
+const HomeScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const cartItems = useSelector(selectCartItems);
+  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [ordering, setOrdering] = useState('-created_at');
+  
+  // Check authentication on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkAuth = async () => {
+        const authenticated = await isAuthenticated();
+        if (!authenticated) {
+          navigation.navigate('SignIn');
+        }
+      };
+      checkAuth();
+    }, [navigation])
+  );
+
+  const handleLogout = async () => {
+    try {
+      await clearTokens();
+      Alert.alert('Logged Out', 'You have been logged out successfully');
+      navigation.navigate('SignIn');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout');
+    }
+  };
+  
+  // API call
+  const { data: products, isLoading, isError, refetch } = useGetAllProductsQuery({
+    search: searchQuery,
+    category: selectedCategory,
+    ordering: ordering
+  });
+
+  // Pull to refresh handler
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [cartSummaryVisible, setCartSummaryVisible] = useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setIsRefreshing(true);
+    refetch().then(() => {
+      setIsRefreshing(false);
+    });
+  }, [refetch]);
+
+  // Show cart summary when items are added
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      setCartSummaryVisible(true);
+    }
+  }, [cartItems]);
+
+  // useEffect(() => {
+  //   const onBackPress = () => {
+  //     if(navigation.current)
+  //     Alert.alert('Confirm Exit', 'Are you sure you want to go back?', [
+  //       { text: 'Cancel', style: 'cancel', onPress: () => {} },
+  //       { 
+  //         text: 'Yes', 
+  //         style: 'destructive', 
+  //         onPress: () => navigation.goBack() 
+  //       }
+  //     ]);
+  //     return true;
+  //   };
+
+  //   BackHandler.addEventListener('hardwareBackPress', onBackPress);
+  //   return () => {
+  //     BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+  //   };
+  // }, [navigation]);
+
+  
+  const categories = ['All', 'Fruits', 'Vegetables', 'Dairy', 'Meat', 'Bakery'];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search products..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#999"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Text style={styles.clearBtn}>Clear</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Categories */}
+      <HomeCategorgiesList categories={categories} />
+
+      {/* Product list */}
+
+      <HomeProductList 
+        products={products} 
+        isLoading={isLoading} 
+        isError={isError}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        }
+      />
+
+      <TouchableOpacity 
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
+        <Text style={styles.logoutText}>Logout</Text>
+      </TouchableOpacity>
+
+      {/* Cart Summary Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={cartSummaryVisible}
+        onRequestClose={() => setCartSummaryVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>Cart Summary</Text>
+            
+            {cartItems.length === 0 ? (
+              <Text style={styles.emptyCartText}>Your cart is empty</Text>
+            ) : (
+              <>
+                <FlatList
+                  data={cartItems}
+                  renderItem={({ item }) => (
+                    <View style={styles.cartItemSummary}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+                    </View>
+                  )}
+                  keyExtractor={(item) => item.id.toString()}
+                  contentContainerStyle={styles.cartList}
+                />
+                
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={styles.closeButton}
+                    onPress={() => setCartSummaryVisible(false)}
+                  >
+                    <Text style={styles.buttonText}>Close</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.viewCartButton}
+                    onPress={() => {
+                      setCartSummaryVisible(false);
+                      navigation.navigate('Cart');
+                    }}
+                  >
+                    <Text style={styles.buttonText}>View Cart</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+const handleLogout = async () => {
+  try {
+    await clearTokens();
+    Alert.alert('Logged Out', 'You have been logged out successfully');
+    navigation.navigate('SignIn');
+  } catch (error) {
+    console.error('Logout error:', error);
+    Alert.alert('Error', 'Failed to logout');
+  }
+};
+
+export default HomeScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  searchContainer: {
+    margin: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: '#333',
+  },
+  clearBtn: {
+    color: '#007AFF',
+    marginLeft: 10,
+    fontWeight: '600',
+  },
+  categoryContainer: {
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
+  },
+  categoryBadgeActive: {
+    backgroundColor: '#007AFF',
+  },
+  categoryText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  categoryTextActive: {
+    color: '#fff',
+  },
+  productsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 8,
+  },
+  productsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  seeAll: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  productList: {
+    padding: 8,
+    paddingBottom: 120,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  cartButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#4CAF50',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  cartButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  logoutButton: {
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    backgroundColor: '#ff4444',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 12
+    },
+    shadowOpacity: 0.58,
+    shadowRadius: 16.00,
+    elevation: 24,
+    width: '80%'
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center'
+  },
+  emptyCartText: {
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  cartItemSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  },
+  itemName: {
+    fontSize: 16
+  },
+  itemQuantity: {
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  cartList: {
+    width: '100%',
+    marginBottom: 20
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%'
+  },
+  closeButton: {
+    backgroundColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 10,
+    minWidth: 80
+  },
+  viewCartButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+    marginLeft: 10,
+    minWidth: 80
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center'
+  }
+});

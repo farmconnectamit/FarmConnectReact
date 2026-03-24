@@ -1,0 +1,209 @@
+/**
+ * Sample React Native App
+ * https://github.com/facebook/react-native
+ *
+ * @format
+ */
+
+import { Provider as ReduxProvider } from "react-redux";
+import { StatusBar, StyleSheet, useColorScheme, View, Text } from 'react-native';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+
+import store from './store';
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import SignInScreen from "./src/components/SignInScreen";
+import SignUpScreen from "./src/components/SignUpScreen";
+import HomeScreen from "./src/components/home/HomeScreen";
+import CartScreen from "./src/components/cart/CartScreen";
+import DetailsScreen from "./src/components/DetailsScreen";
+import FarmList from "./src/components/farm/FarmsList";
+import FarmItemDetail from "./src/components/farm/FarmItemDetail";
+// import ProductDetailScreen from "./src/components/ProductDetailScreen";
+// import CheckoutScreen from "./src/components/cart/CheckoutScreen";
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { FarmItemModel } from "./src/types/api-response";
+import ProfileScreen from "./src/components/profile/ProfileScreen";
+import { 
+  SIGN_IN_SCREEN, 
+  SIGN_UP_SCREEN, 
+  HOME_SCREEN,
+  HOME_TAB,
+  CART_TAB,
+  PROFILE_TAB,
+  FARM_DETAILS_SCREEN,
+  FARMS_LIST_SCREEN
+} from './src/navigation/NavigationConst';
+
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+const FarmStack = createNativeStackNavigator<FarmListStackParamList>();
+console.log('🔵 App.js loaded');
+
+
+export type FarmListStackParamList = {
+  FARMS_LIST_SCREEN: undefined; // No params for the list screen
+  FarmDetail: {
+    item: FarmItemModel ;  // The item to display
+    type?: 'farm';            // Optional: to distinguish rendering
+    fromScreen?: string;                    // Optional: tracking where it came from
+  };
+};
+
+
+  const FarmListStack = () => {
+  return (
+    <FarmStack.Navigator>
+      <FarmStack.Screen
+        name={FARMS_LIST_SCREEN}
+        component={FarmList}
+        options={{ title: 'Farms' }}
+      />
+      <FarmStack.Screen
+        name={FARM_DETAILS_SCREEN}
+        component={FarmItemDetail}
+        options={{ title: 'Farm Details' }}
+      />
+
+    </FarmStack.Navigator>
+  );
+};
+
+// Cart Stack
+const CartStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="CartMain" 
+        component={CartScreen} 
+        options={{ title: 'Your Cart' }}
+      />
+      {/* <Stack.Screen 
+        name="Checkout" 
+        component={CheckoutScreen} 
+        options={{ title: 'Checkout' }}
+      /> */}
+    </Stack.Navigator>
+  );
+};
+
+// Products Stack
+const ProductsStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="Profile Screen" 
+        component={ProfileScreen} 
+        options={{ title: 'Profile' }}
+      />
+      <Stack.Screen 
+        name="ProductsMain" 
+        component={DetailsScreen} 
+        options={{ title: 'Products' }}
+      />
+      
+    </Stack.Navigator>
+  );
+};
+
+// Tab Navigator with nested Stacks
+const HomeTabs = () => {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen 
+        name={HOME_TAB} 
+        component={FarmListStack} 
+        options={{ 
+          headerShown: false, // Hide tab header, let stack handle it
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="leaf" size={size} color={color} />
+          )
+        }} 
+      />
+      <Tab.Screen 
+        name={CART_TAB} 
+        component={CartStack} 
+        options={{ 
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cart" size={size} color={color} />
+          )
+        }} 
+      />
+      <Tab.Screen 
+        name={PROFILE_TAB} 
+        component={ProductsStack} 
+        options={{ 
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" size={size} color={color} />
+          )
+        }} 
+      />
+    </Tab.Navigator>
+  );
+};
+
+  // Main App Navigator
+const AppNavigator = () => {
+  return (
+    <Stack.Navigator initialRouteName={SIGN_IN_SCREEN}>
+      <Stack.Screen 
+        name={SIGN_IN_SCREEN} 
+        component={SignInScreen} 
+        options={{ headerShown: true }} 
+      />
+      <Stack.Screen 
+        name={SIGN_UP_SCREEN} 
+        component={SignUpScreen} 
+        options={{ headerShown: true }} 
+      />
+      <Stack.Screen 
+        name={HOME_SCREEN} 
+        component={HomeTabs} 
+        options={{ headerShown: false }} 
+      />
+    </Stack.Navigator>
+  );
+};
+
+  
+function RootStack() {
+  console.log('🟢 RootStack rendering');
+  return (
+    <AppNavigator />
+  );
+}
+
+function App() {
+  console.log('🟣 App rendering');
+  const isDarkMode = useColorScheme() === 'dark';
+
+  return (
+    <ReduxProvider store={store}>
+      <SafeAreaProvider>
+        <View style={styles.container}>
+          <StatusBar
+            barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+            backgroundColor={isDarkMode ? '#000' : '#fff'}
+          />
+          <NavigationContainer>
+            <RootStack />
+          </NavigationContainer>
+        </View>
+      </SafeAreaProvider>
+    </ReduxProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+
+export default App;

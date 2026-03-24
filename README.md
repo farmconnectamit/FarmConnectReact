@@ -4,6 +4,18 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
+## Prerequisites
+
+Before running the app, ensure you have:
+
+1. **Django Backend Running**: Start the Django server from the `farm_connect` directory:
+   ```bash
+   cd /Users/amitchoudhary/FarmerConnectRepo/farm_connect
+   python manage.py runserver
+   ```
+
+2. **API Configuration**: The app is configured to connect to `http://192.168.1.2:8000/api`. If your IP address is different, update `config/api-config.js`.
+
 ## Step 1: Start Metro
 
 First, you will need to run **Metro**, the JavaScript build tool for React Native.
@@ -47,6 +59,22 @@ Then, and every time you update your native dependencies, run:
 ```sh
 bundle exec pod install
 ```
+
+## Troubleshooting
+
+### Network Error
+If you see "Network Error" when trying to connect to the API:
+
+1. **Check Django server is running**: `python manage.py runserver`
+2. **Check IP address**: Update `config/api-config.js` with your computer's IP address
+3. **For Android emulator**: Use `http://10.0.2.2:8000/api` instead
+4. **For iOS simulator**: Use `http://localhost:8000/api`
+
+### Connection Refused
+1. Make sure Django server is running on port 8000
+2. Check firewall settings
+3. Verify the API_BASE_URL in `config/api-config.js`
+
 
 For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
 
